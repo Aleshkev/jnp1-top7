@@ -261,21 +261,19 @@ int main() {
           // Wypisać top 7 z zamykanego notowania w raz ze zmianą pozycji.
           write_out_ranking(new_listing, listing, number_of_songs_in_ranking);
 
+          // TODO
+          // Dodać do blacklisted_songs utwory, które nie są na pierwszych 7
+          // pozycjach
+          for (int64_t i = 0; i < number_of_songs_in_ranking; i++) {
+            if (listing[i] != 0 && count(new_listing.begin(), new_listing.end(), listing[i]) == 0 ) {
+              blacklisted_songs.insert(listing[i]);
+            }
+          }
           listing = new_listing;
-
           // Przydzielić punkty za pozycje w rankingu
           for (int64_t i = 0; i < number_of_songs_in_ranking; i++) {
             if (listing[i] != 0) {
               all_time_score[listing[i]] += number_of_songs_in_ranking - i;
-            }
-          }
-
-          // TODO
-          // Dodać do blacklisted_songs utwory, które nie są na pierwszych 7
-          // pozycjach
-          for (int64_t i = previous_max_song_id + 1; i <= max_song_id; i++) {
-            if (count(listing.begin(), listing.end(), i) == 0) {
-              blacklisted_songs.insert(i);
             }
           }
         }
@@ -300,7 +298,7 @@ int main() {
         if (TOP == false) {
         TOP = true;
         vector<song_id_t> new_summary = 
-          top_songs(points, number_of_songs_in_ranking);
+          top_songs(all_time_score, number_of_songs_in_ranking);
 
         write_out_ranking(new_summary, summary, number_of_songs_in_ranking);
         summary = new_summary;
