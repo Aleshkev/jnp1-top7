@@ -1,6 +1,7 @@
 // TODO: to trzeba zmienić na pojedyncze nagłówki
 #include <bits/stdc++.h>
 
+
 #include <charconv>
 
 // TODO: to też raczej trzeba zmienić na wiele "using std::..."
@@ -34,7 +35,7 @@ T from_string(const string &s) {
   return x;
 }
 
-// Funkcje żeby się dało wypisywać niektóre kolekcje.
+// Funkcje żeby się dało wypisywać niektóre kolekcje.
 // TODO: pewnie usunąć to jak już będzie działało wszystko albo dać do osobnego
 // pliku
 template <typename T>
@@ -74,27 +75,115 @@ ostream &operator<<(ostream &o, const unordered_map<T, U> &obj) {
 void check_stream(istringstream &stream) {
   if (stream.fail())
     throw invalid_line_of_input("invalid input (like integer overflow)");
-  if (stream.eof()) throw runtime_error("unexpected data");
+  //if (stream.eof()) throw runtime_error("unexpected data");
 }
 
+// Funkcja przewijająca spacje.
 void ignore_stream_until_whitespace(istringstream &stream) {
   string s;
   stream >> s;
 }
 
+
+// Funkcja ze struktury przechowującej liczbę głosów lub punktów
+// utworu wybiera daną liczbę utworów o największej liczbie głosów.
+vector<song_id_t> top_songs(  const score_counter_t &votes, 
+                        const int64_t number_of_songs_in_ranking) {
+  static vector<song_id_t> ranking;
+  ranking.resize(number_of_songs_in_ranking);
+  vector<int64_t> ranking_votes;
+  ranking_votes.resize(number_of_songs_in_ranking);
+  for (auto const &[key, val] : votes) {
+    song_id_t cur_key = key;
+    int64_t cur_val = val;
+    for (int64_t i = 0; i < number_of_songs_in_ranking; i++) {
+      if (cur_val > ranking_votes[i] ||
+          (cur_val == ranking_votes[i] && 
+          (cur_key < ranking[i] || ranking[i] == 0))) {
+        swap(cur_key, ranking[i]);
+        swap(cur_val, ranking_votes[i]);
+      }
+    }
+  }
+  return ranking;
+}
+
+// Funkcja która wypisze notowanie tudzież podsumowanie.
+void write_out_ranking( const vector<song_id_t> &ranking,
+                        const vector<song_id_t> &previous_ranking,
+                        const int64_t number_of_songs_in_ranking) {
+  for (int64_t i = 0; i < number_of_songs_in_ranking; i++) {
+    if (ranking[i] == 0) {
+      return;
+    }
+    cout << ranking[i] << ' ';
+    // Niemożliwe żeby piosenka zmieniła pozycję o tyle miejsc
+    // ile jest w rankingu. Taka wartość zmiennej 
+    // oznacza że jest nowa w rankingu.
+    int64_t change_in_position = number_of_songs_in_ranking;
+    for (int64_t j = 0; j < number_of_songs_in_ranking; j++) {
+      if (previous_ranking[j] == ranking[i]) {
+        change_in_position = j - i;
+        break;
+      }
+    }
+    if (change_in_position == number_of_songs_in_ranking) {
+      cout << '-';
+    }
+    else {
+      cout << change_in_position;
+    }
+    cout << '\n';
+  }
+}
+
+// Funkcja która zwraca true jeśli element 
+
+
+
 // TODO: podzielić na mniejsze funkcje
 int main() {
+  const int64_t number_of_songs_in_ranking = 7;
   // Wyłącz wypisywanie rzeczy niepotrzebnych w zadaniu. (Ale przydatnych w
   // debugowaniu.) clog.setstate(ios_base::failbit);
+  clog.setstate(ios_base::failbit);
+
+  // Pozycje utworów w poprzednim notowaniu.
+  // Jeśli na danym miejscu znajduje się zero, to oznacza to
+  // że w poprzednim notowaniu nie było ono zajęte 
+  // z powodu zbyt małej liczby piosenek.
+  // W szczególności jeśli na wszystkich miejscach znajdują się zera to
+  // żadne notowanie nie zostało jeszcze zamknięte.
+  vector<song_id_t> listing;
+  listing.resize(number_of_songs_in_ranking);
+
+  // Pozycje utworów w poprzednim podsumowaniu.
+  // Została przyjęta taka sama konwencja jak przy reprezentacji
+  // pozycji utworów w poprzednim notowaniu.
+  vector<song_id_t> summary;
+  summary.resize(number_of_songs_in_ranking);
+
+  // Obecna liczba punktów danego utworu w podsumowaniu.
+  score_counter_t points;
 
   // Obecna liczba głosów na dany utwór.
   score_counter_t votes;
 
   score_counter_t all_time_score;
 
+  // Zmienna która mówi czy po ostatnim wykonaniu polecenia NEW
+  // zostało wykonane polecenie TOP.
+  bool TOP = false;
+
+  // Wydaje mi się że trzymanie przedziału piosenek 
+  // które zostały dodane w nowym notowaniu i sprawdzanie czy głos 
+  // nie należy do tego przedziału albo do poprzedniego rankingu będzie mieć
+  // znacząco lepszą złożoność obliczeniową, bo nie trzeba dodawać
+  // wielu piosenek do blacklisted_songs.
   // Utwory, które wypadły z notowań. Nie można na nie głosować.
   unordered_set<song_id_t> blacklisted_songs;
 
+  song_id_t previous_max_song_id = 0;
   song_id_t max_song_id = 0;
   const song_id_t max_max_song_id = 99999999;
 
@@ -109,6 +198,7 @@ int main() {
       istringstream line_stream(line);
       smatch args;
 
+      // Oddawanie głosu.
       if (regex_match(line, args, vote_command)) {
         if (max_song_id == 0)
           throw invalid_line_of_input("no ranking has begun yet");
@@ -143,7 +233,9 @@ int main() {
         continue;
       }
 
+      // Polecenie NEW
       if (regex_match(line, args, new_command)) {
+        TOP = false;
         song_id_t new_max_song_id;
 
         ignore_stream_until_whitespace(line_stream);
@@ -157,31 +249,65 @@ int main() {
         if (new_max_song_id > max_max_song_id)
           throw invalid_line_of_input("limit too high");
 
-        max_song_id = new_max_song_id;
+        // Obsługa zamykanego notowania.
+        // Wypisywanie zamykanego notowania.
+        // Jeśli wcześniej odbyło się notowanie to:
+        if (max_song_id > 0) {
+          // Znaleźć utwory, które są w top 7 obecnego notowania
+          vector<song_id_t> new_listing = 
+          top_songs(votes, number_of_songs_in_ranking);
+
+          // Porównać z utworami które były w top 7 poprzedniego notowania.
+          // Wypisać top 7 z zamykanego notowania w raz ze zmianą pozycji.
+          write_out_ranking(new_listing, listing, number_of_songs_in_ranking);
+
+          listing = new_listing;
+
+          // Przydzielić punkty za pozycje w rankingu
+          for (int64_t i = 0; i < number_of_songs_in_ranking; i++) {
+            if (listing[i] != 0) {
+              all_time_score[listing[i]] += number_of_songs_in_ranking - i;
+            }
+          }
+
+          // TODO
+          // Dodać do blacklisted_songs utwory, które nie są na pierwszych 7
+          // pozycjach
+          for (int64_t i = previous_max_song_id + 1; i <= max_song_id; i++) {
+            if (count(listing.begin(), listing.end(), i) == 0) {
+              blacklisted_songs.insert(i);
+            }
+          }
+        }
 
         clog << "Songs in this ranking:" << endl;
         clog << "  " << votes << endl;
 
-        // Przydzielić punkty za pozycje w rankingu
-        // all_time_score[] = ...
-
-        // Dodać do blacklisted_songs utwory, które nie są na pierwszych 7
-        // pozycjach
-
-        // ... ?
-
-        // TODO
-
+        previous_max_song_id = max_song_id;
+        max_song_id = new_max_song_id;
         votes.clear();
 
         continue;
       }
+      // Polecenie TOP
       if (regex_match(line, args, top_command)) {
         clog << "Songs rated by their positions in rankings:" << endl;
         clog << "  " << all_time_score << endl;
 
-        // TODO
+        // Ponieważ punkty dodawane są tylko podczas wywoływania NEW,
+        // to można dokonać optymalizacji i wykonywać obliczenia tylko raz 
+        // pomiędzy wywołaniami NEW.
+        if (TOP == false) {
+        TOP = true;
+        vector<song_id_t> new_summary = 
+          top_songs(points, number_of_songs_in_ranking);
 
+        write_out_ranking(new_summary, summary, number_of_songs_in_ranking);
+        summary = new_summary;
+        }
+        else 
+        write_out_ranking(summary, summary, number_of_songs_in_ranking);
+        
         continue;
       }
       throw invalid_line_of_input("unknown line format");
