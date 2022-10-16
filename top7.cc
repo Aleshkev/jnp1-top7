@@ -88,8 +88,8 @@ void ignore_stream_until_whitespace(istringstream &stream) {
 // utworu wybiera daną liczbę utworów o największej liczbie głosów.
 song_id_t* top_songs(  const score_counter_t &votes, 
                         const int64_t number_of_songs_in_ranking) {
-  song_id_t[number_of_songs_in_ranking] ranking;
-  int64_t[number_of_songs_in_ranking] ranking_votes;
+  song_id_t ranking[number_of_songs_in_ranking];
+  int64_t ranking_votes[number_of_songs_in_ranking];
   for (auto const &[key, val] : votes) {
     song_id_t cur_key = key;
     int64_t cur_val = val;
@@ -150,12 +150,12 @@ int main() {
   // z powodu zbyt małej liczby piosenek.
   // W szczególności jeśli na wszystkich miejscach znajdują się zera to
   // żadne notowanie nie zostało jeszcze zamknięte.
-  song_id_t[number_of_songs_in_ranking] listing;
+  song_id_t listing[number_of_songs_in_ranking];
 
   // Pozycje utworów w poprzednim podsumowaniu.
   // Została przyjęta taka sama konwencja jak przy reprezentacji
   // pozycji utworów w poprzednim notowaniu.
-  song_id_t[number_of_songs_in_ranking] summary;
+  song_id_t summary[number_of_songs_in_ranking];
 
   // Obecna liczba punktów danego utworu w podsumowaniu.
   score_counter_t points;
@@ -164,6 +164,10 @@ int main() {
   score_counter_t votes;
 
   score_counter_t all_time_score;
+
+  // Zmienna która mówi czy po ostatnim wykonaniu polecenia NEW
+  // zostało wykonane polecenie TOP.
+  bool TOP_between_NEWS = false;
 
   // Wydaje mi się że trzymanie przedziału piosenek 
   // które zostały dodane w nowym notowaniu i sprawdzanie czy głos 
@@ -225,6 +229,7 @@ int main() {
 
       // Polecenie NEW
       if (regex_match(line, args, new_command)) {
+        TOP_between_NEWS = false;
         song_id_t new_max_song_id;
 
         ignore_stream_until_whitespace(line_stream);
@@ -243,7 +248,7 @@ int main() {
         // Jeśli wcześniej odbyło się notowanie to:
         if (max_song_id > 0) {
           // Znaleźć utwory, które są w top 7 obecnego notowania
-          song_id_t[number_of_songs_in_ranking] new_listing = 
+          song_id_t new_listing[number_of_songs_in_ranking] = 
           top_songs(votes, number_of_songs_in_ranking);
 
           // Porównać z utworami które były w top 7 poprzedniego notowania.
@@ -259,18 +264,13 @@ int main() {
             }
           }
 
+          // TODO
           // Dodać do blacklisted_songs utwory, które nie są na pierwszych 7
           // pozycjach
           for (int64_t i = previous_max_song_id + 1; i <= max_song_id; i++) {
             
           }
         }
-
-        
-
-        // ... ?
-
-        // TODO
 
         clog << "Songs in this ranking:" << endl;
         clog << "  " << votes << endl;
@@ -286,8 +286,20 @@ int main() {
         clog << "Songs rated by their positions in rankings:" << endl;
         clog << "  " << all_time_score << endl;
 
-        // TODO
+        // Ponieważ punkty dodawane są tylko podczas wywoływania NEW,
+        // to można dokonać optymalizacji i wykonywać obliczenia tylko raz 
+        // pomiędzy wywołaniami NEW.
+        if (TOP == false) {
+        TOP = true;
+        song_id_t new_summary[number_of_songs_in_ranking] = 
+          top_songs(points, number_of_songs_in_ranking);
 
+        write_out_ranking(new_summary, summary, number_of_songs_in_ranking);
+        summary = new_summary;
+        }
+        else 
+        write_out_ranking(summary, summary, number_of_songs_in_ranking);
+        
         continue;
       }
       throw invalid_line_of_input("unknown line format");
