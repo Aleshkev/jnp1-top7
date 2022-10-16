@@ -86,9 +86,10 @@ void ignore_stream_until_whitespace(istringstream &stream) {
 
 // Funkcja ze struktury przechowującej liczbę głosów lub punktów
 // utworu wybiera daną liczbę utworów o największej liczbie głosów.
-song_id_t* top_songs(  const score_counter_t &votes, 
+vector<song_id_t> top_songs(  const score_counter_t &votes, 
                         const int64_t number_of_songs_in_ranking) {
-  song_id_t ranking[number_of_songs_in_ranking];
+  static vector<song_id_t> ranking;
+  ranking.resize(number_of_songs_in_ranking);
   int64_t ranking_votes[number_of_songs_in_ranking];
   for (auto const &[key, val] : votes) {
     song_id_t cur_key = key;
@@ -106,8 +107,8 @@ song_id_t* top_songs(  const score_counter_t &votes,
 }
 
 // Funkcja która wypisze notowanie tudzież podsumowanie.
-void write_out_ranking( const song_id_t &ranking[],
-                        const song_id_t &previous_ranking[],
+void write_out_ranking( const vector<song_id_t> &ranking,
+                        const vector<song_id_t> &previous_ranking,
                         const int64_t number_of_songs_in_ranking) {
   for (int64_t i = 0; i < number_of_songs_in_ranking; i++) {
     if (ranking[i] == 0) {
@@ -150,12 +151,14 @@ int main() {
   // z powodu zbyt małej liczby piosenek.
   // W szczególności jeśli na wszystkich miejscach znajdują się zera to
   // żadne notowanie nie zostało jeszcze zamknięte.
-  song_id_t listing[number_of_songs_in_ranking];
+  vector<song_id_t> listing[number_of_songs_in_ranking];
+  listing.resize(number_of_songs_in_ranking);
 
   // Pozycje utworów w poprzednim podsumowaniu.
   // Została przyjęta taka sama konwencja jak przy reprezentacji
   // pozycji utworów w poprzednim notowaniu.
-  song_id_t summary[number_of_songs_in_ranking];
+  vector<song_id_t> summary;
+  summary.resize(number_of_songs_in_ranking);
 
   // Obecna liczba punktów danego utworu w podsumowaniu.
   score_counter_t points;
@@ -167,7 +170,7 @@ int main() {
 
   // Zmienna która mówi czy po ostatnim wykonaniu polecenia NEW
   // zostało wykonane polecenie TOP.
-  bool TOP_between_NEWS = false;
+  bool TOP = false;
 
   // Wydaje mi się że trzymanie przedziału piosenek 
   // które zostały dodane w nowym notowaniu i sprawdzanie czy głos 
@@ -248,7 +251,7 @@ int main() {
         // Jeśli wcześniej odbyło się notowanie to:
         if (max_song_id > 0) {
           // Znaleźć utwory, które są w top 7 obecnego notowania
-          song_id_t new_listing[number_of_songs_in_ranking] = 
+          vector<song_id_t> new_listing[number_of_songs_in_ranking] = 
           top_songs(votes, number_of_songs_in_ranking);
 
           // Porównać z utworami które były w top 7 poprzedniego notowania.
@@ -293,7 +296,7 @@ int main() {
         // pomiędzy wywołaniami NEW.
         if (TOP == false) {
         TOP = true;
-        song_id_t new_summary[number_of_songs_in_ranking] = 
+        vector<song_id_t> new_summary = 
           top_songs(points, number_of_songs_in_ranking);
 
         write_out_ranking(new_summary, summary, number_of_songs_in_ranking);
