@@ -75,7 +75,7 @@ ostream &operator<<(ostream &o, const unordered_map<T, U> &obj) {
 void check_stream(istringstream &stream) {
   if (stream.fail())
     throw invalid_line_of_input("invalid input (like integer overflow)");
-  if (stream.eof()) throw runtime_error("unexpected data");
+  //if (stream.eof()) throw runtime_error("unexpected data");
 }
 
 // Funkcja przewijająca spacje.
@@ -146,6 +146,7 @@ int main() {
   const int64_t number_of_songs_in_ranking = 7;
   // Wyłącz wypisywanie rzeczy niepotrzebnych w zadaniu. (Ale przydatnych w
   // debugowaniu.) clog.setstate(ios_base::failbit);
+  clog.setstate(ios_base::failbit);
 
   // Pozycje utworów w poprzednim notowaniu.
   // Jeśli na danym miejscu znajduje się zero, to oznacza to
