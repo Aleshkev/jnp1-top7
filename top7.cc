@@ -268,7 +268,9 @@ int main() {
           // Dodać do blacklisted_songs utwory, które nie są na pierwszych 7
           // pozycjach
           for (int64_t i = previous_max_song_id + 1; i <= max_song_id; i++) {
-            
+            if (!listing.contains(i)) {
+              blacklisted_songs.insert(i);
+            }
           }
         }
 
