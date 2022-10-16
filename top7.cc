@@ -89,11 +89,14 @@ void ignore_stream_until_whitespace(istringstream &stream) {
 // utworu wybiera daną liczbę utworów o największej liczbie głosów.
 vector<song_id_t> top_songs(  const score_counter_t &votes, 
                         const int64_t number_of_songs_in_ranking) {
-  static vector<song_id_t> ranking;
-  ranking.resize(number_of_songs_in_ranking);
+  vector<song_id_t> ranking;
+  ranking.resize(number_of_songs_in_ranking, 0);
   vector<int64_t> ranking_votes;
-  ranking_votes.resize(number_of_songs_in_ranking);
+  ranking_votes.resize(number_of_songs_in_ranking, 0);
   for (auto const &[key, val] : votes) {
+    if (val == 0) {
+      continue;
+    }
     song_id_t cur_key = key;
     int64_t cur_val = val;
     for (int64_t i = 0; i < number_of_songs_in_ranking; i++) {
