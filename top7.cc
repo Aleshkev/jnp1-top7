@@ -1,6 +1,7 @@
 // TODO: to trzeba zmienić na pojedyncze nagłówki
 #include <bits/stdc++.h>
 
+
 #include <charconv>
 
 // TODO: to też raczej trzeba zmienić na wiele "using std::..."
@@ -34,7 +35,7 @@ T from_string(const string &s) {
   return x;
 }
 
-// Funkcje żeby się dało wypisywać niektóre kolekcje.
+// Funkcje żeby się dało wypisywać niektóre kolekcje.
 // TODO: pewnie usunąć to jak już będzie działało wszystko albo dać do osobnego
 // pliku
 template <typename T>
@@ -90,7 +91,8 @@ vector<song_id_t> top_songs(  const score_counter_t &votes,
                         const int64_t number_of_songs_in_ranking) {
   static vector<song_id_t> ranking;
   ranking.resize(number_of_songs_in_ranking);
-  int64_t ranking_votes[number_of_songs_in_ranking];
+  vector<int64_t> ranking_votes;
+  ranking_votes.resize(number_of_songs_in_ranking);
   for (auto const &[key, val] : votes) {
     song_id_t cur_key = key;
     int64_t cur_val = val;
@@ -126,7 +128,7 @@ void write_out_ranking( const vector<song_id_t> &ranking,
       }
     }
     if (change_in_position == number_of_songs_in_ranking) {
-      cout << '-'
+      cout << '-';
     }
     else {
       cout << change_in_position;
@@ -151,7 +153,7 @@ int main() {
   // z powodu zbyt małej liczby piosenek.
   // W szczególności jeśli na wszystkich miejscach znajdują się zera to
   // żadne notowanie nie zostało jeszcze zamknięte.
-  vector<song_id_t> listing[number_of_songs_in_ranking];
+  vector<song_id_t> listing;
   listing.resize(number_of_songs_in_ranking);
 
   // Pozycje utworów w poprzednim podsumowaniu.
@@ -232,7 +234,7 @@ int main() {
 
       // Polecenie NEW
       if (regex_match(line, args, new_command)) {
-        TOP_between_NEWS = false;
+        TOP = false;
         song_id_t new_max_song_id;
 
         ignore_stream_until_whitespace(line_stream);
@@ -251,7 +253,7 @@ int main() {
         // Jeśli wcześniej odbyło się notowanie to:
         if (max_song_id > 0) {
           // Znaleźć utwory, które są w top 7 obecnego notowania
-          vector<song_id_t> new_listing[number_of_songs_in_ranking] = 
+          vector<song_id_t> new_listing = 
           top_songs(votes, number_of_songs_in_ranking);
 
           // Porównać z utworami które były w top 7 poprzedniego notowania.
@@ -260,7 +262,7 @@ int main() {
 
           listing = new_listing;
 
-          // Przydzielić punkty za pozycje w rankingu
+          // Przydzielić punkty za pozycje w rankingu
           for (int64_t i = 0; i < number_of_songs_in_ranking; i++) {
             if (listing[i] != 0) {
               all_time_score[listing[i]] += number_of_songs_in_ranking - i;
@@ -271,7 +273,7 @@ int main() {
           // Dodać do blacklisted_songs utwory, które nie są na pierwszych 7
           // pozycjach
           for (int64_t i = previous_max_song_id + 1; i <= max_song_id; i++) {
-            if (!listing.contains(i)) {
+            if (count(listing.begin(), listing.end(), i) == 0) {
               blacklisted_songs.insert(i);
             }
           }
