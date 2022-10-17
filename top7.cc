@@ -51,7 +51,7 @@ void check_stream(istringstream &stream) {
 }
 
 // Pomiń jedno słowo.
-void ignore_stream_until_whitespace(istringstream &stream) {
+void ignore_word(istringstream &stream) {
   string s;
   stream >> s;
 }
@@ -82,8 +82,8 @@ vector<song_id_t> top_songs(const score_counter_t &votes) {
 }
 
 // Funkcja która wypisze notowanie tudzież podsumowanie.
-void write_out_ranking(const listing_t &ranking,
-                       const listing_t &previous_ranking) {
+void print_ranking(const listing_t &ranking,
+                   const listing_t &previous_ranking) {
   for (int64_t i = 0; i < number_of_songs_in_ranking; i++) {
     if (ranking[i] == 0) {
       return;
@@ -140,15 +140,35 @@ void do_vote_command(istringstream &line_stream, song_id_t &max_song_id,
   for (auto song : songs) ++votes[song];
 }
 
-void do_new_command(istringstream &line_stream, bool &calculate_top_ranking,
+void blacklist_songs_that_fell_out_of_the_listing(
+    const listing_t &listing, const listing_t &new_listing,
+    unordered_set<song_id_t> &blacklisted_songs) {
+  for (int64_t i = 0; i < number_of_songs_in_ranking; i++) {
+    if (listing[i] != 0 &&
+        count(new_listing.begin(), new_listing.end(), listing[i]) == 0) {
+      blacklisted_songs.insert(listing[i]);
+    }
+  }
+}
+
+void assign_points_for_song_positions(const listing_t &listing,
+                                      score_counter_t &all_time_score) {
+  for (int64_t i = 0; i < number_of_songs_in_ranking; i++) {
+    if (listing[i] != 0) {
+      all_time_score[listing[i]] += number_of_songs_in_ranking - i;
+    }
+  }
+}
+
+void do_new_command(istringstream &line_stream, bool &is_top_ranking_up_to_date,
                     song_id_t &max_song_id, score_counter_t &votes,
                     listing_t &listing,
                     unordered_set<song_id_t> &blacklisted_songs,
                     score_counter_t &all_time_score) {
-  calculate_top_ranking = false;
+  is_top_ranking_up_to_date = false;
   song_id_t new_max_song_id;
 
-  ignore_stream_until_whitespace(line_stream);
+  ignore_word(line_stream);
   line_stream >> new_max_song_id;
   check_stream(line_stream);
 
@@ -159,54 +179,38 @@ void do_new_command(istringstream &line_stream, bool &calculate_top_ranking,
   if (new_max_song_id > max_max_song_id)
     throw invalid_line_of_input("limit too high");
 
-  // Obsługa zamykanego notowania.
-  // Wypisywanie zamykanego notowania.
-  // Jeśli wcześniej odbyło się notowanie to:
-  if (max_song_id > 0) {
-    // Znaleźć utwory, które są w top 7 obecnego notowania
+  if (max_song_id > 0) {  // Jeśli wcześniej odbyło się notowanie.
     vector<song_id_t> new_listing = top_songs(votes);
 
-    // Porównać z utworami które były w top 7 poprzedniego notowania.
-    // Wypisać top 7 z zamykanego notowania w raz ze zmianą pozycji.
-    write_out_ranking(new_listing, listing);
+    print_ranking(new_listing, listing);
 
-    // Nie można już głosowac na utwory nie będące na pierwszych 7
-    // pozycjach.
-    for (int64_t i = 0; i < number_of_songs_in_ranking; i++) {
-      if (listing[i] != 0 &&
-          count(new_listing.begin(), new_listing.end(), listing[i]) == 0) {
-        blacklisted_songs.insert(listing[i]);
-      }
-    }
+    blacklist_songs_that_fell_out_of_the_listing(listing, new_listing,
+                                                 blacklisted_songs);
+
     listing = new_listing;
 
-    // Przydzielić punkty za pozycje w rankingu
-    for (int64_t i = 0; i < number_of_songs_in_ranking; i++) {
-      if (listing[i] != 0) {
-        all_time_score[listing[i]] += number_of_songs_in_ranking - i;
-      }
-    }
+    assign_points_for_song_positions(listing, all_time_score);
   }
 
   max_song_id = new_max_song_id;
   votes.clear();
 }
-
-void do_top_command(bool &calculate_top_ranking,
+void do_top_command(bool &is_top_ranking_up_to_date,
                     const score_counter_t &all_time_score, listing_t &summary) {
   // Ponieważ punkty dodawane są tylko podczas wywoływania NEW,
   // to można dokonać optymalizacji i wykonywać obliczenia tylko raz
   // pomiędzy wywołaniami NEW.
-  if (!calculate_top_ranking) {
-    calculate_top_ranking = true;
-    vector<song_id_t> new_summary = top_songs(all_time_score);
+  if (is_top_ranking_up_to_date) {
+    print_ranking(summary, summary);
+    return;
+  }
 
-    write_out_ranking(new_summary, summary);
-    summary = new_summary;
-  } else
-    write_out_ranking(summary, summary);
+  is_top_ranking_up_to_date = true;
+  vector<song_id_t> new_summary = top_songs(all_time_score);
+
+  print_ranking(new_summary, summary);
+  summary = new_summary;
 }
-
 }  // namespace
 
 // TODO: podzielić na mniejsze funkcje
@@ -231,14 +235,17 @@ int main() {
   // Obecna liczba głosów na dany utwór.
   score_counter_t votes;
 
+  // Liczba punktów, które ma dany utwór w punktacji opartej na pozycjach w
+  // rankingach. (Do rankingu TOP.)
   score_counter_t all_time_score;
 
-  // Zmienna która mówi czy po ostatnim wykonaniu polecenia NEW
-  // zostało wykonane polecenie TOP.
-  bool calculate_top_ranking = false;
+  // Czy po ostatnim wykonaniu polecenia NEW zostało wykonane polecenie TOP.
+  bool is_top_ranking_up_to_date = false;
 
+  // Utwory na które nie można głosować (bo wypadły z rankingu).
   unordered_set<song_id_t> blacklisted_songs;
 
+  // Maksymalny numer utworu na który można obecnie głosować.
   song_id_t max_song_id = 0;
 
   int64_t line_i = 0;
@@ -252,14 +259,13 @@ int main() {
       istringstream line_stream(line);
       smatch args;
 
-      // Oddawanie głosu.
       if (regex_match(line, args, vote_command))
         do_vote_command(line_stream, max_song_id, blacklisted_songs, votes);
       else if (regex_match(line, args, new_command))
-        do_new_command(line_stream, calculate_top_ranking, max_song_id, votes,
-                       listing, blacklisted_songs, all_time_score);
+        do_new_command(line_stream, is_top_ranking_up_to_date, max_song_id,
+                       votes, listing, blacklisted_songs, all_time_score);
       else if (regex_match(line, args, top_command))
-        do_top_command(calculate_top_ranking, all_time_score, summary);
+        do_top_command(is_top_ranking_up_to_date, all_time_score, summary);
       else
         throw invalid_line_of_input("unknown line format");
     } catch (invalid_line_of_input &error) {
