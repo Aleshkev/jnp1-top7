@@ -11,6 +11,8 @@
 // TODO: to też raczej trzeba zmienić na wiele "using std::..."
 using namespace std;
 
+constexpr int64_t number_of_songs_in_ranking = 7;
+
 // Typy danych do zadania.
 using song_id_t = int64_t;
 using score_counter_t = unordered_map<song_id_t, int64_t>;
@@ -52,8 +54,7 @@ void ignore_stream_until_whitespace(istringstream &stream) {
 
 // Funkcja ze struktury przechowującej liczbę głosów lub punktów
 // utworu wybiera daną liczbę utworów o największej liczbie głosów.
-vector<song_id_t> top_songs(const score_counter_t &votes,
-                            const int64_t number_of_songs_in_ranking) {
+vector<song_id_t> top_songs(const score_counter_t &votes) {
   vector<song_id_t> ranking;
   ranking.resize(number_of_songs_in_ranking);
   vector<int64_t> ranking_votes;
@@ -78,8 +79,7 @@ vector<song_id_t> top_songs(const score_counter_t &votes,
 
 // Funkcja która wypisze notowanie tudzież podsumowanie.
 void write_out_ranking(const vector<song_id_t> &ranking,
-                       const vector<song_id_t> &previous_ranking,
-                       const int64_t number_of_songs_in_ranking) {
+                       const vector<song_id_t> &previous_ranking) {
   for (int64_t i = 0; i < number_of_songs_in_ranking; i++) {
     if (ranking[i] == 0) {
       return;
@@ -107,8 +107,6 @@ void write_out_ranking(const vector<song_id_t> &ranking,
 
 // TODO: podzielić na mniejsze funkcje
 int main() {
-  const int64_t number_of_songs_in_ranking = 7;
-
   // Wyłącz wypisywanie rzeczy niepotrzebnych w zadaniu. (Ale przydatnych w
   // debugowaniu.)
   clog.setstate(ios_base::failbit);
@@ -208,11 +206,11 @@ int main() {
         if (max_song_id > 0) {
           // Znaleźć utwory, które są w top 7 obecnego notowania
           vector<song_id_t> new_listing =
-              top_songs(votes, number_of_songs_in_ranking);
+              top_songs(votes);
 
           // Porównać z utworami które były w top 7 poprzedniego notowania.
           // Wypisać top 7 z zamykanego notowania w raz ze zmianą pozycji.
-          write_out_ranking(new_listing, listing, number_of_songs_in_ranking);
+          write_out_ranking(new_listing, listing);
 
           // Nie można już głosowac na utwory nie będące na pierwszych 7
           // pozycjach.
@@ -246,12 +244,12 @@ int main() {
         if (!calculate_top_ranking) {
           calculate_top_ranking = true;
           vector<song_id_t> new_summary =
-              top_songs(all_time_score, number_of_songs_in_ranking);
+              top_songs(all_time_score);
 
-          write_out_ranking(new_summary, summary, number_of_songs_in_ranking);
+          write_out_ranking(new_summary, summary);
           summary = new_summary;
         } else
-          write_out_ranking(summary, summary, number_of_songs_in_ranking);
+          write_out_ranking(summary, summary);
 
         continue;
       }
