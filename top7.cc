@@ -1,7 +1,11 @@
-// TODO: to trzeba zmienić na pojedyncze nagłówki
-#include <bits/stdc++.h>
-
-
+#include <vector>
+#include <unordered_map>
+#include <unordered_set>
+#include <string>
+#include <regex>
+#include <cstdio>
+#include <cinttypes>
+#include <iostream>
 #include <charconv>
 
 // TODO: to też raczej trzeba zmienić na wiele "using std::..."
@@ -35,50 +39,12 @@ T from_string(const string &s) {
   return x;
 }
 
-// Funkcje żeby się dało wypisywać niektóre kolekcje.
-// TODO: pewnie usunąć to jak już będzie działało wszystko albo dać do osobnego
-// pliku
-template <typename T>
-ostream &operator<<(ostream &o, const vector<T> &obj) {
-  o << "[";
-  bool first = true;
-  for (auto key : obj) {
-    if (!first) o << ", ";
-    o << key;
-    first = false;
-  }
-  return o << "]";
-}
-template <typename T>
-ostream &operator<<(ostream &o, const unordered_set<T> &obj) {
-  o << "{";
-  bool first = true;
-  for (auto key : obj) {
-    if (!first) o << ", ";
-    o << key;
-    first = false;
-  }
-  return o << "}";
-}
-template <typename T, typename U>
-ostream &operator<<(ostream &o, const unordered_map<T, U> &obj) {
-  o << "{";
-  bool first = true;
-  for (auto const &[key, val] : obj) {
-    if (!first) o << ", ";
-    o << key << ": " << val;
-    first = false;
-  }
-  return o << "}";
-}
-
 void check_stream(istringstream &stream) {
   if (stream.fail())
     throw invalid_line_of_input("invalid input (like integer overflow)");
-  //if (stream.eof()) throw runtime_error("unexpected data");
 }
 
-// Funkcja przewijająca spacje.
+// Pomiń jedno słowo.
 void ignore_stream_until_whitespace(istringstream &stream) {
   string s;
   stream >> s;
@@ -90,9 +56,9 @@ void ignore_stream_until_whitespace(istringstream &stream) {
 vector<song_id_t> top_songs(  const score_counter_t &votes, 
                         const int64_t number_of_songs_in_ranking) {
   vector<song_id_t> ranking;
-  ranking.resize(number_of_songs_in_ranking, 0);
+  ranking.resize(number_of_songs_in_ranking);
   vector<int64_t> ranking_votes;
-  ranking_votes.resize(number_of_songs_in_ranking, 0);
+  ranking_votes.resize(number_of_songs_in_ranking);
   for (auto const &[key, val] : votes) {
     if (val == 0) {
       continue;
@@ -120,6 +86,7 @@ void write_out_ranking( const vector<song_id_t> &ranking,
       return;
     }
     cout << ranking[i] << ' ';
+
     // Niemożliwe żeby piosenka zmieniła pozycję o tyle miejsc
     // ile jest w rankingu. Taka wartość zmiennej 
     // oznacza że jest nowa w rankingu.
@@ -140,15 +107,12 @@ void write_out_ranking( const vector<song_id_t> &ranking,
   }
 }
 
-// Funkcja która zwraca true jeśli element 
-
-
-
 // TODO: podzielić na mniejsze funkcje
 int main() {
   const int64_t number_of_songs_in_ranking = 7;
+
   // Wyłącz wypisywanie rzeczy niepotrzebnych w zadaniu. (Ale przydatnych w
-  // debugowaniu.) clog.setstate(ios_base::failbit);
+  // debugowaniu.)
   clog.setstate(ios_base::failbit);
 
   // Pozycje utworów w poprzednim notowaniu.
@@ -176,14 +140,8 @@ int main() {
 
   // Zmienna która mówi czy po ostatnim wykonaniu polecenia NEW
   // zostało wykonane polecenie TOP.
-  bool TOP = false;
+  bool calculate_top_ranking = false;
 
-  // Wydaje mi się że trzymanie przedziału piosenek 
-  // które zostały dodane w nowym notowaniu i sprawdzanie czy głos 
-  // nie należy do tego przedziału albo do poprzedniego rankingu będzie mieć
-  // znacząco lepszą złożoność obliczeniową, bo nie trzeba dodawać
-  // wielu piosenek do blacklisted_songs.
-  // Utwory, które wypadły z notowań. Nie można na nie głosować.
   unordered_set<song_id_t> blacklisted_songs;
 
   song_id_t previous_max_song_id = 0;
@@ -231,14 +189,12 @@ int main() {
 
         for (auto song : songs) ++votes[song];
 
-        clog << "votes now: " << votes << endl;
-
         continue;
       }
 
       // Polecenie NEW
       if (regex_match(line, args, new_command)) {
-        TOP = false;
+        calculate_top_ranking = false;
         song_id_t new_max_song_id;
 
         ignore_stream_until_whitespace(line_stream);
@@ -281,9 +237,6 @@ int main() {
           }
         }
 
-        clog << "Songs in this ranking:" << endl;
-        clog << "  " << votes << endl;
-
         previous_max_song_id = max_song_id;
         max_song_id = new_max_song_id;
         votes.clear();
@@ -292,19 +245,16 @@ int main() {
       }
       // Polecenie TOP
       if (regex_match(line, args, top_command)) {
-        clog << "Songs rated by their positions in rankings:" << endl;
-        clog << "  " << all_time_score << endl;
-
         // Ponieważ punkty dodawane są tylko podczas wywoływania NEW,
         // to można dokonać optymalizacji i wykonywać obliczenia tylko raz 
         // pomiędzy wywołaniami NEW.
-        if (TOP == false) {
-        TOP = true;
-        vector<song_id_t> new_summary = 
-          top_songs(all_time_score, number_of_songs_in_ranking);
+        if (!calculate_top_ranking) {
+          calculate_top_ranking = true;
+          vector<song_id_t> new_summary = 
+            top_songs(all_time_score, number_of_songs_in_ranking);
 
-        write_out_ranking(new_summary, summary, number_of_songs_in_ranking);
-        summary = new_summary;
+          write_out_ranking(new_summary, summary, number_of_songs_in_ranking);
+          summary = new_summary;
         }
         else 
         write_out_ranking(summary, summary, number_of_songs_in_ranking);
@@ -320,6 +270,3 @@ int main() {
   }
   return 0;
 }
-
-// TODO: przejrzeć ten styl kodu co tam jest na moodle'u bo ma takie
-// nieoczywiste rzeczy niektóre xd
